@@ -358,11 +358,23 @@ void keyboard(unsigned char key, int x, int y)
         case 'v':
             draw_voronoi = !draw_voronoi;
         break;
+        case 'b':
+            if (curr_mesh > 0){
+                curr_mesh--;
+                clear_intersection();
+                intersection_with_BSP();
+                cout << "Face count: " <<  meshes[curr_mesh].face_count() << endl;
+            }
+            cout << "Current Frame:" << curr_mesh <<endl;
+        break;  
         case 'n':
             clear_intersection();
             intersection_with_BSP();
-            create_mesh();
+            curr_mesh++;
+            if (curr_mesh >= meshes.size()) 
+                create_mesh();
             cout << "Face count: " <<  meshes[curr_mesh].face_count() << endl;
+            cout << "Current Frame:" << curr_mesh <<endl;
         break;  
         case 'w':
             ctx.wireframe = !ctx.wireframe;
@@ -386,7 +398,8 @@ void menu()
     cout << "Compute Intersections                      i" << endl;
     cout << "Draw Intersections                         p" << endl;
     cout << "Draw Voronoi Edges                         v" << endl;
-    cout << "Iterate RDT Operator                       n" << endl;
+    cout << "Iterate RDT Operator: next                 n" << endl;
+    cout << "Iterate RDT Operator: back                 b" << endl;
     cout << "Toggle Wireframe                           w" << endl;
     cout << "Testing                                    t" << endl;
     cout << "Quit                                       ESC" << endl;
