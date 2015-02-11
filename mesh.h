@@ -69,15 +69,16 @@ private:
 
 class Box
 {
-private:
-    bool initialized;
 
 public:
+    bool initialized;
     double bounds[6];//up, down, left, right, front, back; //not generalized enough consider: bounds[Dimension*2]
     void extend(Face* f);
     Box(){
       initialized = false;
     }
+//private:
+//    bool initialized;
 };
 
 class BSP_tree
@@ -98,6 +99,6 @@ void normalize(Mesh& mesh);
 void compute_normals(Mesh& mesh);
 void center_on_screen(Mesh& mesh);
 
-BSP_tree* build_BSP(vector<Face*> faces, int depth, size_t faces_size);
+//BSP_tree* build_BSP(vector<Face*> faces, size_t size, int depth);
 double get_midpoint(Face* f, int axis);
 #endif

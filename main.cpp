@@ -19,6 +19,10 @@
 #include "intersection.h"
 #include "pyramid.c"
 
+const int Max_BSP_Depth = 15;
+const int Min_Num_Triangles = 30;
+const int Dimension = 3;
+
 using namespace std;
 
 
@@ -79,10 +83,56 @@ void intersection()
         }
     }
 }
+
+
+BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth){
+    BSP_tree* tree = new BSP_tree;
+    tree->box = new Box;
+    tree->l_child = NULL;
+    tree->r_child = NULL;
+    tree->axis = depth % Dimension;
+
+    //////initializing
+   
+    double midpoint = 0;
+    if ((size>Min_Num_Triangles)&&(depth < Max_BSP_Depth)){ //Terminating point
+        for (int i = 0; i < size; i++){
+            Face* current = faces[i];
+            midpoint += (get_midpoint(current, tree->axis))/(double)size;
+              tree->box->extend(current);
+        }// Spliting plane
+        tree->split = midpoint;
+        size_t left_size = 0;
+        size_t right_size = 0;
+
+        for (int i = 0; i < size; i++){
+            Face* current = faces[i];
+            if (get_midpoint(current,tree->axis) <= midpoint){
+                tree->left.push_back(current);
+                left_size++;
+            } else {
+                tree->right.push_back(current);
+                right_size++;
+            } 
+        }
+        //printf("spliting at depth %d with %d left tris and %d right tris with threshold %f\n", depth, left_size, right_size, tree->split);
+        tree->l_child = build_BSP(tree->left, left_size, depth+1);
+        tree->r_child = build_BSP(tree->right, right_size, depth+1);
+    } else {
+        //printf("build the leaf at depth %d\n", depth);
+        for (int i = 0; i < size; i++){
+            tree->box->extend(faces[i]);
+        }
+        tree->left = faces;
+        tree->right = faces;
+    }
+    return tree;
+}
+
 void intersection_with_BSP_helper(Edge* e, BSP_tree* bsp){
     if ((bsp->l_child == NULL)&&(bsp->r_child == NULL)) {
-        printf("reach the leaf!");
-        for (int i = 0; i <= bsp->left.size(); i++) {
+//        printf("reach the leaf!");
+        for (int i = 0; i < bsp->left.size(); i++) {
             Face* f = bsp->left[i];
             if(!e->intersected) {
                 bool hit = edge_face_intersection(e,f);
@@ -106,17 +156,21 @@ void intersection_with_BSP()
 {
     countNum++;
     cout << "hello with " << countNum;
-    vector<Face*> triangles;
+    std::vector<Face*> triangles;
+    size_t size = 0;
+    cout << "face_count: " << meshes[curr_mesh].face_count() << endl;
     for(size_t j = 0; j < meshes[curr_mesh].face_count(); j++) {
         Face* f = meshes[curr_mesh].get_face(j);
         triangles.push_back(f);
+        size++;
     }
-    BSP_tree* bsp = build_BSP(triangles, 0, triangles.size());
-    //cout << "finish building BSP!"; 
-    //for(size_t i = 0; i < vor.edge_count(); i++) {
-    //    Edge* e = vor.get_edge(i);
-    //    intersection_with_BSP_helper(e, bsp);
-    //}
+    cout << "sizes: " << size << endl;
+    BSP_tree* bsp = build_BSP(triangles, size, 0);
+    cout << "finish building BSP!" << endl; 
+    for(size_t i = 0; i < vor.edge_count(); i++) {
+        Edge* e = vor.get_edge(i);
+        intersection_with_BSP_helper(e, bsp);
+    }
 }
 
 
