@@ -1,4 +1,9 @@
 #include "mesh.h"
+#include <vector>
+
+const int Max_BSP_Depth = 15;
+const int Min_Num_Triangles = 1000;//30;
+const int Dimension = 3;
 
 void Mesh::add(Vertex* v)
 {
@@ -141,3 +146,66 @@ void center_on_screen(Mesh& mesh)
         v->v[2] *= scale;
     }
 }
+
+
+void Box::extend(Face* f)
+{
+    for (int i = 0; i < f->v.size(); i++){
+        for (int j = 0; j < 3; j++){
+            if (!initialized || (f->v[i]->v[j] < bounds[j * 2]))
+          bounds[j * 2] = f->v[i]->v[j];
+            if (!initialized || (f->v[i]->v[j] > bounds[j * 2 + 1]))
+          bounds[j * 2 + 1] = f->v[i]->v[j];
+        }
+        initialized = true;
+    }
+}
+
+double get_midpoint(Face* f, int axis){
+    double ans = 0.0;
+    size_t size = f->v.size();
+    for (size_t i = 0; i < size; i++){
+        ans += (f->v[i]->v[axis]) / size;
+    }
+    return ans;
+}
+
+BSP_tree* build_BSP(vector<Face*> BSP_faces, int depth){
+    BSP_tree* tree;
+    tree->box = new Box;
+    tree->l_child = NULL;
+    tree->r_child = NULL;
+    //tree->axis = depth % Dimension;
+
+    ////initializing
+   
+    double midpoint;
+    //size_t faces_size = BSP_faces.size();
+    //if (size>Min_Num_Triangles){ //Terminating point
+    //    for (int i = 0; i < size; i++){
+    //        Face* current = faces[i];
+    //        midpoint += (get_midpoint(current, tree->axis))/size;
+    //        tree->box->extend(current);
+    //    }// Spliting plane
+    //    tree->split = midpoint;
+    //    for (int i = 0; i < size; i++){
+    //        Face* current = faces[i];
+    //        if (get_midpoint(current,tree->axis) <= midpoint){
+    //            tree->left.push_back(current);
+    //        } else {
+    //            tree->right.push_back(current);
+    //        } 
+    //    }
+    //    tree->l_child = build_BSP(tree->left, depth+1);
+    //    tree->r_child = build_BSP(tree->right, depth+1);
+    //} else {
+    //    printf("build the leaf at depth %d", depth);
+    //    for (int i = 0; i < size; i++){
+    //        tree->box->extend(faces[i]);
+    //    }
+    //    tree->left = faces;
+    //    tree->right = faces;
+    //}
+    return tree;
+}
+
