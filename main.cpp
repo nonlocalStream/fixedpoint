@@ -17,7 +17,10 @@
 #include "mathutil.h"
 #include "glcontext.h"
 #include "intersection.h"
+#ifndef __PYRAMID__
+#define __PYRAMID__
 #include "pyramid.c"
+#endif
 
 const int Max_BSP_Depth = 15;
 const int Min_Num_Triangles = 30;
@@ -84,6 +87,62 @@ void intersection()
     }
 }
 
+bool edge_side_intersection(vertex x,
+                            vertex w,
+                            vertex y,
+                            vertex z,
+                            vertex a,
+                            vertex b)
+{
+    // this ensures a and b are on opposite sides of the rectangle x,w,y,z (counterclockwise) or one of themis on the rectangle
+    if (orient3d(x,w,y,a)*orient3d(x,w,y,b) > 0) {
+      return false;
+    }
+    /* Orient3D(x,w,a,b), Orient3D(w,y,a,b)
+     * Orient3D(y,z,a,b), Orient3D(z,x,a,b)
+     * all have the same signs
+     * which guarantee that line a-b intersect with the rectangle
+     */
+    if (orient3d(x,w,a,b)*orient3d(w,y,a,b) < 0) {
+      return false;
+    }
+    if (orient3d(w,y,a,b)*orient3d(y,z,a,b) < 0) {
+      return false;
+    }
+    if (orient3d(y,z,a,b)*orient3d(z,x,a,b) < 0) {
+      return false;
+    }
+    return true;
+}
+bool inBox(Edge *e, Box* box) {
+  double* bounds;
+  bounds = box->bounds;
+  REAL v000[3]= {bounds[0], bounds[2], bounds[4]};
+  REAL v001[3]= {bounds[0], bounds[2], bounds[5]};
+  REAL v010[3]= {bounds[0], bounds[3], bounds[4]};
+  REAL v011[3]= {bounds[0], bounds[3], bounds[5]};
+  REAL v100[3]= {bounds[1], bounds[2], bounds[4]};
+  REAL v101[3]= {bounds[1], bounds[2], bounds[5]};
+  REAL v110[3]= {bounds[1], bounds[3], bounds[4]};
+  REAL v111[3]= {bounds[1], bounds[3], bounds[5]};
+  if (e->is_ray) {
+      return true;
+  } else {
+      REAL e_v0[3];
+      REAL e_v1[3];
+      for (int i = 0; i < 3; i++) {
+        e_v0[i] = e->v[0]->v[i];
+        e_v1[i] = e->v[1]->v[i];
+      }
+      return edge_side_intersection(v001, v101, v111, v011, e_v0, e_v1) || //up
+             edge_side_intersection(v000, v100, v110, v010, e_v0, e_v1) || //down
+             edge_side_intersection(v000, v010, v011, v001, e_v0, e_v1) || //left
+             edge_side_intersection(v100, v110, v111, v101, e_v0, e_v1) || //right
+             edge_side_intersection(v000, v100, v101, v001, e_v0, e_v1) || //front
+             edge_side_intersection(v010, v110, v111, v011, e_v0, e_v1); //back
+  }
+  return true;
+}
 
 BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth){
     BSP_tree* tree = new BSP_tree;
