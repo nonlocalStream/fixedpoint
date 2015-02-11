@@ -1,5 +1,6 @@
 #include "mesh.h"
 
+
 void Mesh::add(Vertex* v)
 {
     v->index = vertices.size();
@@ -141,3 +142,27 @@ void center_on_screen(Mesh& mesh)
         v->v[2] *= scale;
     }
 }
+
+
+void Box::extend(Face* f)
+{
+    for (int i = 0; i < f->v.size(); i++){
+        for (int j = 0; j < 3; j++){
+            if (!initialized || (f->v[i]->v[j] < bounds[j * 2]))
+          bounds[j * 2] = f->v[i]->v[j];
+            if (!initialized || (f->v[i]->v[j] > bounds[j * 2 + 1]))
+          bounds[j * 2 + 1] = f->v[i]->v[j];
+        }
+        initialized = true;
+    }
+}
+
+double get_midpoint(Face* f, int axis){
+    double ans = 0.0;
+    size_t size = f->v.size();
+    for (size_t i = 0; i < size; i++){
+        ans += (f->v[i]->v[axis]) / size;
+    }
+    return ans;
+}
+

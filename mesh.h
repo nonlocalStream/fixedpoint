@@ -7,6 +7,7 @@
 #include <cmath>
 #include "mathutil.h"
 
+//const int Dimension = 3;
 using std::vector;
 using std::max;
 
@@ -43,6 +44,7 @@ struct Face
     size_t index;
 };
 
+
 class Mesh
 {
 public:
@@ -53,6 +55,7 @@ public:
     Vertex* get_vertex(int i);
     Edge* get_edge(int i);
     Face* get_face(int i);
+    vector<Face*> get_faces();
 
     size_t vertex_count() const;
     size_t edge_count() const;
@@ -64,9 +67,38 @@ private:
     vector<Face*> faces;
 };
 
+class Box
+{
+
+public:
+    bool initialized;
+    double bounds[6];//up, down, left, right, front, back; //not generalized enough consider: bounds[Dimension*2]
+    void extend(Face* f);
+    Box(){
+      initialized = false;
+    }
+//private:
+//    bool initialized;
+};
+
+class BSP_tree
+{
+public:
+    Box* box;
+    vector<Face*> left, right;
+    double split;
+    int axis;
+    BSP_tree* l_child;
+    BSP_tree* r_child;
+};
+
 Edge* get_edge(Vertex* v0, Vertex* v1);
 Edge* create_edge(Vertex* v0, Vertex* v1, Face* f, Mesh& mesh);
+
 void normalize(Mesh& mesh);
 void compute_normals(Mesh& mesh);
 void center_on_screen(Mesh& mesh);
+
+//BSP_tree* build_BSP(vector<Face*> faces, size_t size, int depth);
+double get_midpoint(Face* f, int axis);
 #endif

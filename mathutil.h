@@ -12,4 +12,5 @@ void normalize(double* v);
 void cross_product(double* v, double* u, double* res);
 void inverse(float* m, float* res);
 
+void sub(double* v, double* u, double* d);
 #endif

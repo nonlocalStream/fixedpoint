@@ -74,3 +74,9 @@ void inverse(float* m, float* res)
         res[15] = (m[2]*d23 - m[6]*d13 + m[10]*d12) * invdet;
     }
 }
+
+void sub(double* u, double* v, double* d) {
+    for (int i = 0; i++; i < 3) {
+        d[i] = u[i] - v[i];
+    }
+}

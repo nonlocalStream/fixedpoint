@@ -17,7 +17,14 @@
 #include "mathutil.h"
 #include "glcontext.h"
 #include "intersection.h"
+#ifndef __PYRAMID__
+#define __PYRAMID__
 #include "pyramid.c"
+#endif
+
+const int Max_BSP_Depth = 15;
+const int Min_Num_Triangles = 30;
+const int Dimension = 3;
 
 using namespace std;
 
@@ -26,9 +33,9 @@ Context ctx;
 Mesh mesh;
 Mesh vor;
 Mesh del;
-
 vector<Mesh> meshes;
 int curr_mesh = 0;
+int countNum = 0;
 
 GLUquadricObj *quadric = gluNewQuadric();
 bool draw_intersection = false;
@@ -63,21 +70,168 @@ void create_mesh()
 
 void intersection()
 {
+    cout << "hello with original";
     for(size_t i = 0; i < vor.edge_count(); i++) {
         Edge* e = vor.get_edge(i);
         for(size_t j = 0; j < meshes[curr_mesh].face_count(); j++) {
             Face* f = meshes[curr_mesh].get_face(j);
             if(!e->intersected) {
-                bool hit = edge_triangle_intersection(e,f);
+                bool hit = edge_face_intersection(e,f);
                 if(!hit) {
                     f->n[0] *= -1, f->n[1] *= -1, f->n[2] *= -1;
-                    edge_triangle_intersection(e,f);
+                    edge_face_intersection(e,f);
                     f->n[0] *= -1, f->n[1] *= -1, f->n[2] *= -1;
                 }
             }
         }
     }
 }
+
+bool edge_side_intersection(vertex x,
+                            vertex w,
+                            vertex y,
+                            vertex z,
+                            vertex a,
+                            vertex b)
+{
+    // this ensures a and b are on opposite sides of the rectangle x,w,y,z (counterclockwise) or one of themis on the rectangle
+    if (orient3d(x,w,y,a)*orient3d(x,w,y,b) > 0) {
+      return false;
+    }
+    /* Orient3D(x,w,a,b), Orient3D(w,y,a,b)
+     * Orient3D(y,z,a,b), Orient3D(z,x,a,b)
+     * all have the same signs
+     * which guarantee that line a-b intersect with the rectangle
+     */
+    if (orient3d(x,w,a,b)*orient3d(w,y,a,b) < 0) {
+      return false;
+    }
+    if (orient3d(w,y,a,b)*orient3d(y,z,a,b) < 0) {
+      return false;
+    }
+    if (orient3d(y,z,a,b)*orient3d(z,x,a,b) < 0) {
+      return false;
+    }
+    return true;
+}
+bool inBox(Edge *e, Box* box) {
+  double* bounds;
+  bounds = box->bounds;
+  REAL v000[3]= {bounds[0], bounds[2], bounds[4]};
+  REAL v001[3]= {bounds[0], bounds[2], bounds[5]};
+  REAL v010[3]= {bounds[0], bounds[3], bounds[4]};
+  REAL v011[3]= {bounds[0], bounds[3], bounds[5]};
+  REAL v100[3]= {bounds[1], bounds[2], bounds[4]};
+  REAL v101[3]= {bounds[1], bounds[2], bounds[5]};
+  REAL v110[3]= {bounds[1], bounds[3], bounds[4]};
+  REAL v111[3]= {bounds[1], bounds[3], bounds[5]};
+  if (e->is_ray) {
+      return true;
+  } else {
+      REAL e_v0[3];
+      REAL e_v1[3];
+      for (int i = 0; i < 3; i++) {
+        e_v0[i] = e->v[0]->v[i];
+        e_v1[i] = e->v[1]->v[i];
+      }
+      return edge_side_intersection(v001, v101, v111, v011, e_v0, e_v1) || //up
+             edge_side_intersection(v000, v100, v110, v010, e_v0, e_v1) || //down
+             edge_side_intersection(v000, v010, v011, v001, e_v0, e_v1) || //left
+             edge_side_intersection(v100, v110, v111, v101, e_v0, e_v1) || //right
+             edge_side_intersection(v000, v100, v101, v001, e_v0, e_v1) || //front
+             edge_side_intersection(v010, v110, v111, v011, e_v0, e_v1); //back
+  }
+  return true;
+}
+
+BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth){
+    BSP_tree* tree = new BSP_tree;
+    tree->box = new Box;
+    tree->l_child = NULL;
+    tree->r_child = NULL;
+    tree->axis = depth % Dimension;
+
+    //////initializing
+   
+    double midpoint = 0;
+    if ((size>Min_Num_Triangles)&&(depth < Max_BSP_Depth)){ //Terminating point
+        for (int i = 0; i < size; i++){
+            Face* current = faces[i];
+            midpoint += (get_midpoint(current, tree->axis))/(double)size;
+              tree->box->extend(current);
+        }// Spliting plane
+        tree->split = midpoint;
+        size_t left_size = 0;
+        size_t right_size = 0;
+
+        for (int i = 0; i < size; i++){
+            Face* current = faces[i];
+            if (get_midpoint(current,tree->axis) <= midpoint){
+                tree->left.push_back(current);
+                left_size++;
+            } else {
+                tree->right.push_back(current);
+                right_size++;
+            } 
+        }
+        //printf("spliting at depth %d with %d left tris and %d right tris with threshold %f\n", depth, left_size, right_size, tree->split);
+        tree->l_child = build_BSP(tree->left, left_size, depth+1);
+        tree->r_child = build_BSP(tree->right, right_size, depth+1);
+    } else {
+        //printf("build the leaf at depth %d\n", depth);
+        for (int i = 0; i < size; i++){
+            tree->box->extend(faces[i]);
+        }
+        tree->left = faces;
+        tree->right = faces;
+    }
+    return tree;
+}
+
+void intersection_with_BSP_helper(Edge* e, BSP_tree* bsp){
+    if ((bsp->l_child == NULL)&&(bsp->r_child == NULL)) {
+//        printf("reach the leaf!");
+        for (int i = 0; i < bsp->left.size(); i++) {
+            Face* f = bsp->left[i];
+            if(!e->intersected) {
+                bool hit = edge_face_intersection(e,f);
+                if(!hit) {
+                    f->n[0] *= -1, f->n[1] *= -1, f->n[2] *= -1;
+                    edge_face_intersection(e,f);
+                    f->n[0] *= -1, f->n[1] *= -1, f->n[2] *= -1;
+                }
+            }
+        }
+    } else {
+        if (inBox(e, bsp->box)){
+          intersection_with_BSP_helper(e, bsp->l_child);
+          intersection_with_BSP_helper(e, bsp->r_child);
+        }
+    }
+}
+
+
+void intersection_with_BSP()
+{
+    countNum++;
+    cout << "hello with " << countNum;
+    std::vector<Face*> triangles;
+    size_t size = 0;
+    cout << "face_count: " << meshes[curr_mesh].face_count() << endl;
+    for(size_t j = 0; j < meshes[curr_mesh].face_count(); j++) {
+        Face* f = meshes[curr_mesh].get_face(j);
+        triangles.push_back(f);
+        size++;
+    }
+    cout << "sizes: " << size << endl;
+    BSP_tree* bsp = build_BSP(triangles, size, 0);
+    cout << "finish building BSP!" << endl; 
+    for(size_t i = 0; i < vor.edge_count(); i++) {
+        Edge* e = vor.get_edge(i);
+        intersection_with_BSP_helper(e, bsp);
+    }
+}
+
 
 void draw_point(double* v)
 {
@@ -110,6 +264,7 @@ void display()
     glTranslatef(0, 0, -4);
     glMultMatrixf(ctx.mat);
     
+
     for(int i = 0; i < meshes[curr_mesh].face_count(); i++) {
         Face* f = meshes[curr_mesh].get_face(i);
         glBegin(GL_POLYGON);
@@ -153,6 +308,25 @@ void display()
         glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
         }
     }
+
+//    if(draw_BSP) {
+//        Box* b;
+//        double left,up,front = 100,100,100;
+//        double right,down,back = 300,300,300;
+//        b 
+//        for(int i = 0; i < meshes[curr_mesh].face_count(); i++) {
+//            Face* f = meshes[curr_mesh].get_face(i);
+//            glBegin(GL_POLYGON);
+//            for(int j = 0; j < f->v.size(); j++) {
+//                Vertex* v = f->v[j];
+//                glNormal3dv(v->n);
+//                glTexCoord2dv(v->t);
+//                glVertex3dv(v->v);  
+//            } 
+//            glEnd();
+//    } 
+
+
     glPopMatrix();
     glutSwapBuffers();
 }
@@ -175,7 +349,8 @@ void keyboard(unsigned char key, int x, int y)
 {
     switch(key) {
         case 'i':
-            intersection();
+            cout << "hello!with i" << endl;
+            intersection_with_BSP();
         break;
         case 'p':
             draw_intersection = !draw_intersection;
@@ -185,12 +360,15 @@ void keyboard(unsigned char key, int x, int y)
         break;
         case 'n':
             clear_intersection();
-            intersection();
+            intersection_with_BSP();
             create_mesh();
             cout << "Face count: " <<  meshes[curr_mesh].face_count() << endl;
         break;  
         case 'w':
             ctx.wireframe = !ctx.wireframe;
+        break;
+        case 't':
+            cout << "Testing edge_face added....." << endl;
         break;
         case 27: //ESC key
             exit(0);
@@ -210,6 +388,7 @@ void menu()
     cout << "Draw Voronoi Edges                         v" << endl;
     cout << "Iterate RDT Operator                       n" << endl;
     cout << "Toggle Wireframe                           w" << endl;
+    cout << "Testing                                    t" << endl;
     cout << "Quit                                       ESC" << endl;
 }
 
