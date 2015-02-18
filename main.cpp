@@ -20,10 +20,12 @@
 #ifndef __PYRAMID__
 #define __PYRAMID__
 #include "pyramid.c"
+#include <time.h>
+#include <stdlib.h>
 #endif
 
 const int Max_BSP_Depth = 15;
-const int Min_Num_Triangles = 30;
+const int Min_Num_Triangles = 3;
 const int Dimension = 3;
 
 using namespace std;
@@ -46,6 +48,27 @@ void clear_intersection()
     for(size_t i = 0; i < vor.edge_count(); i++) {
         Edge* e = vor.get_edge(i);
         e->intersected = false;
+    }
+}
+
+void print_intersection(FILE* f)
+{
+    for(size_t i = 0; i < vor.edge_count(); i++) {
+        Edge* e = vor.get_edge(i);
+        if (e->intersected){
+            fprintf(f, "%d th is TRUE: %f, %f, %f\n", i, e->p[0], e->p[1], e->p[2]);
+        } else {
+            fprintf(f, "%d th is FALSE\n", i);
+        }
+    }
+}
+
+int count_triangles(BSP_tree* bsp)
+{
+    if ((bsp->l_child == NULL)&&(bsp->r_child == NULL)) {
+        return bsp->left.size();
+    } else {
+        return count_triangles(bsp->l_child)+count_triangles(bsp->r_child);
     }
 }
 
@@ -134,6 +157,17 @@ bool inBox(Edge *e, Box* box) {
         e_v0[i] = e->v[0]->v[i];
         e_v1[i] = e->v[1]->v[i];
       }
+
+      //check if completely inside the box
+      int inside = 1;
+      for (int i=0; i<3; i++){
+          if ((e_v0[i] < bounds[i*2]) || (e_v0[i] > bounds[i*2+1])) inside = 0;
+          if ((e_v1[i] < bounds[i*2]) || (e_v1[i] > bounds[i*2+1])) inside = 0;
+      }
+      
+      if (inside) return true;
+      
+      //check if intersect with 1 side of the box
       return edge_side_intersection(v001, v101, v111, v011, e_v0, e_v1) || //up
              edge_side_intersection(v000, v100, v110, v010, e_v0, e_v1) || //down
              edge_side_intersection(v000, v010, v011, v001, e_v0, e_v1) || //left
@@ -144,7 +178,45 @@ bool inBox(Edge *e, Box* box) {
   return true;
 }
 
-BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth){
+double quickselect(double * a, 
+                   int l,
+                   int r,
+                   int k) 
+{
+  if (l < r) {
+    int pivot_index = rand() % (r-l+1) + l;
+    double pivot = a[pivot_index];
+    double temp;
+    a[pivot_index] = a[r];
+    int i = l - 1;
+    int j = r;
+    do {
+        do { i++; } while (a[i] < pivot);
+        do { j--; } while ((pivot < a[j]) && (j > l));
+        if (i < j) {
+            temp = a[i];
+            a[i] = a[j];
+            a[j] = temp;
+        }
+    } while (i < j);
+    a[r] = a[i];
+    a[i] = pivot;
+        quickselect(a, l, i - 1, k);
+        quickselect(a, i + 1, r, k);
+    /*
+    if (i == k) {
+        return a[i];
+    } else if (k < i) {
+        quickselect(a, l, i - 1, k);
+    } else {
+        quickselect(a, i + 1, r, k);
+    }
+    */
+  }
+}
+
+BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth) {
+    srand(time(NULL));
     BSP_tree* tree = new BSP_tree;
     tree->box = new Box;
     tree->l_child = NULL;
@@ -154,12 +226,23 @@ BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth){
     //////initializing
    
     double midpoint = 0;
+    //double a[size * 3];
+
     if ((size>Min_Num_Triangles)&&(depth < Max_BSP_Depth)){ //Terminating point
         for (int i = 0; i < size; i++){
             Face* current = faces[i];
             midpoint += (get_midpoint(current, tree->axis))/(double)size;
-              tree->box->extend(current);
+           
+            //a[i*3] = current->v[0]->v[tree->axis];
+            //a[i*3+1] = current->v[1]->v[tree->axis];
+            //a[i*3+2] = current->v[2]->v[tree->axis];
+            tree->box->extend(current);
         }// Spliting plane
+        //for (int i = 0; i < 60; i++) {
+        //    printf("a[%d] = %f, ", i, a[i]);
+        //}
+        //midpoint = quickselect(a, 0, 3*size-1, 3*size/2);
+        //printf("\n midpoint is %f\n", midpoint);
         tree->split = midpoint;
         size_t left_size = 0;
         size_t right_size = 0;
@@ -188,9 +271,10 @@ BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth){
     return tree;
 }
 
-void intersection_with_BSP_helper(Edge* e, BSP_tree* bsp){
+void intersection_with_BSP_helper(Edge* e, BSP_tree* bsp, int depth){
+    double * bounds;
     if ((bsp->l_child == NULL)&&(bsp->r_child == NULL)) {
-//        printf("reach the leaf!");
+        //printf("reach the leaf!\n");
         for (int i = 0; i < bsp->left.size(); i++) {
             Face* f = bsp->left[i];
             if(!e->intersected) {
@@ -203,9 +287,17 @@ void intersection_with_BSP_helper(Edge* e, BSP_tree* bsp){
             }
         }
     } else {
-        if (inBox(e, bsp->box)){
-          intersection_with_BSP_helper(e, bsp->l_child);
-          intersection_with_BSP_helper(e, bsp->r_child);
+    bounds = bsp->l_child->box->bounds;
+    //printf("left reaching depth %d---1st: %f~%f; 2nd: %f~%f; 3rd: %f~%f\n", depth, bounds[0], bounds[1],bounds[2], bounds[3],bounds[4], bounds[5]);
+    bounds = bsp->r_child->box->bounds;
+    //printf("reaching depth %d---1st: %f~%f; 2nd: %f~%f; 3rd: %f~%f\n", depth, bounds[0], bounds[1],bounds[2], bounds[3],bounds[4], bounds[5]);
+        if (inBox(e, bsp->l_child->box)){
+          //printf("intersect with left!\n");
+          intersection_with_BSP_helper(e, bsp->l_child, depth+1);
+        }
+        if (inBox(e, bsp->r_child->box)){
+          //printf("intersect with right!\n");
+          intersection_with_BSP_helper(e, bsp->r_child, depth+1);
         }
     }
 }
@@ -214,7 +306,6 @@ void intersection_with_BSP_helper(Edge* e, BSP_tree* bsp){
 void intersection_with_BSP()
 {
     countNum++;
-    cout << "hello with " << countNum;
     std::vector<Face*> triangles;
     size_t size = 0;
     cout << "face_count: " << meshes[curr_mesh].face_count() << endl;
@@ -228,7 +319,8 @@ void intersection_with_BSP()
     cout << "finish building BSP!" << endl; 
     for(size_t i = 0; i < vor.edge_count(); i++) {
         Edge* e = vor.get_edge(i);
-        intersection_with_BSP_helper(e, bsp);
+    //printf("edge (%f,%f,%f)-(%f,%f,%f)\n", e->v[0]->v[0], e->v[0]->v[1], e->v[0]->v[2],e->v[1]->v[0], e->v[1]->v[1], e->v[1]->v[2]);
+        intersection_with_BSP_helper(e, bsp, 0);
     }
 }
 
@@ -347,10 +439,22 @@ void reshape(int w, int h)
 
 void keyboard(unsigned char key, int x, int y)
 {
+    FILE *f;
     switch(key) {
         case 'i':
-            cout << "hello!with i" << endl;
+            cout << "normal intersection" << endl;
+            intersection();
+            f = fopen("intsec","w+");
+            print_intersection(f);
+            fclose(f);
+        break;
+        case 's':
+            cout << "BSP intersection" << endl;
+            clear_intersection();
             intersection_with_BSP();
+            f = fopen("BSPintsec","w+");
+            print_intersection(f);
+            fclose(f);
         break;
         case 'p':
             draw_intersection = !draw_intersection;
@@ -396,6 +500,7 @@ void menu()
     cout << "\033[1;31m   Fixed Point Menu\033[0m" << endl;
     cout << "\033[1;31mOption                                    Key\033[0m" << endl;
     cout << "Compute Intersections                      i" << endl;
+    cout << "Compute Intersections with BSP             s" << endl;
     cout << "Draw Intersections                         p" << endl;
     cout << "Draw Voronoi Edges                         v" << endl;
     cout << "Iterate RDT Operator: next                 n" << endl;
