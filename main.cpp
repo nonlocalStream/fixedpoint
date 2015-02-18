@@ -183,11 +183,16 @@ double quickselect(double * a,
                    int r,
                    int k) 
 {
+  //For (int i = l; i<=r; i++) {
+  //    printf("%f, ", a[i]);
+  //}
+  //printf("\n");
   if (l < r) {
     int pivot_index = rand() % (r-l+1) + l;
     double pivot = a[pivot_index];
     double temp;
     a[pivot_index] = a[r];
+    a[r] = pivot;
     int i = l - 1;
     int j = r;
     do {
@@ -201,17 +206,16 @@ double quickselect(double * a,
     } while (i < j);
     a[r] = a[i];
     a[i] = pivot;
-        quickselect(a, l, i - 1, k);
-        quickselect(a, i + 1, r, k);
-    /*
     if (i == k) {
         return a[i];
     } else if (k < i) {
-        quickselect(a, l, i - 1, k);
+        return quickselect(a, l, i - 1, k);
     } else {
-        quickselect(a, i + 1, r, k);
+        return quickselect(a, i + 1, r, k);
     }
-    */
+  }
+  else {
+    if (l == k) return a[l]; else return a[r];
   }
 }
 
@@ -226,22 +230,22 @@ BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth) {
     //////initializing
    
     double midpoint = 0;
-    //double a[size * 3];
+    double a[size * 3];
 
     if ((size>Min_Num_Triangles)&&(depth < Max_BSP_Depth)){ //Terminating point
         for (int i = 0; i < size; i++){
             Face* current = faces[i];
-            midpoint += (get_midpoint(current, tree->axis))/(double)size;
+            //midpoint += (get_midpoint(current, tree->axis))/(double)size;
            
-            //a[i*3] = current->v[0]->v[tree->axis];
-            //a[i*3+1] = current->v[1]->v[tree->axis];
-            //a[i*3+2] = current->v[2]->v[tree->axis];
+            a[i*3] = current->v[0]->v[tree->axis];
+            a[i*3+1] = current->v[1]->v[tree->axis];
+            a[i*3+2] = current->v[2]->v[tree->axis];
             tree->box->extend(current);
         }// Spliting plane
         //for (int i = 0; i < 60; i++) {
         //    printf("a[%d] = %f, ", i, a[i]);
         //}
-        //midpoint = quickselect(a, 0, 3*size-1, 3*size/2);
+        midpoint = quickselect(a, 0, 3*size-1, 3*size/2);
         //printf("\n midpoint is %f\n", midpoint);
         tree->split = midpoint;
         size_t left_size = 0;
@@ -257,7 +261,7 @@ BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth) {
                 right_size++;
             } 
         }
-        //printf("spliting at depth %d with %d left tris and %d right tris with threshold %f\n", depth, left_size, right_size, tree->split);
+        printf("spliting at depth %d with %d left tris and %d right tris with threshold %f\n", depth, left_size, right_size, tree->split);
         tree->l_child = build_BSP(tree->left, left_size, depth+1);
         tree->r_child = build_BSP(tree->right, right_size, depth+1);
     } else {
@@ -440,6 +444,7 @@ void reshape(int w, int h)
 void keyboard(unsigned char key, int x, int y)
 {
     FILE *f;
+    double a[10] = {10,60,20,40,80,30,90,100,50,70};
     switch(key) {
         case 'i':
             cout << "normal intersection" << endl;
@@ -484,7 +489,7 @@ void keyboard(unsigned char key, int x, int y)
             ctx.wireframe = !ctx.wireframe;
         break;
         case 't':
-            cout << "Testing edge_face added....." << endl;
+            cout << "Testing:";
         break;
         case 27: //ESC key
             exit(0);
