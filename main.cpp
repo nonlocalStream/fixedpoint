@@ -77,6 +77,7 @@ void create_mesh()
     Mesh next;
     for(size_t i = 0; i < vor.edge_count(); i++) {
         Edge* e = vor.get_edge(i);
+        next.add(e);
         if(e->intersected) {
             Face* f = e->dual;
             for(size_t j = 0; j < f->v.size(); j++) {
@@ -446,14 +447,12 @@ void keyboard(unsigned char key, int x, int y)
     FILE *f;
     double a[10] = {10,60,20,40,80,30,90,100,50,70};
     switch(key) {
-        case 'i':
+        /*case 'i':
             cout << "normal intersection" << endl;
             intersection();
-            f = fopen("intsec","w+");
-            print_intersection(f);
-            fclose(f);
         break;
-        case 's':
+        */
+        case 'i':
             cout << "BSP intersection" << endl;
             clear_intersection();
             intersection_with_BSP();
@@ -466,6 +465,12 @@ void keyboard(unsigned char key, int x, int y)
         break;
         case 'v':
             draw_voronoi = !draw_voronoi;
+        break;
+        case 'r':
+            revert_normals(meshes[curr_mesh]);
+        break;
+        case 'a':
+            adjust_normals(meshes[curr_mesh]);
         break;
         case 'b':
             if (curr_mesh > 0){
@@ -511,7 +516,9 @@ void menu()
     cout << "Iterate RDT Operator: next                 n" << endl;
     cout << "Iterate RDT Operator: back                 b" << endl;
     cout << "Toggle Wireframe                           w" << endl;
-    cout << "Testing                                    t" << endl;
+    cout << "Revert all normals                         r" << endl;
+    cout << "Adjust normals                             a" << endl;
+    cout << "Quit                                       ESC" << endl;
     cout << "Quit                                       ESC" << endl;
 }
 
