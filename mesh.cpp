@@ -355,7 +355,7 @@ void adjust_normals(Mesh& mesh)
         dfs_from_face(mesh, mesh.get_face(0), adj_face);
       }
     }
-    
+    compute_normals(mesh);
 }
 
 void revert_face(Face* f){

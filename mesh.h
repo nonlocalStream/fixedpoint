@@ -42,6 +42,7 @@ struct Face
     Edge* dual;
     double n[3];
     size_t index;
+    bool visited;
 };
 
 
@@ -101,4 +102,6 @@ void center_on_screen(Mesh& mesh);
 
 //BSP_tree* build_BSP(vector<Face*> faces, size_t size, int depth);
 double get_midpoint(Face* f, int axis);
+void adjust_normals(Mesh& mesh);
+void revert_normals(Mesh& mesh);
 #endif

@@ -13,4 +13,5 @@ void cross_product(double* v, double* u, double* res);
 void inverse(float* m, float* res);
 
 void sub(double* v, double* u, double* d);
+void revert(double* v);
 #endif
