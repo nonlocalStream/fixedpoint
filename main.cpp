@@ -94,7 +94,6 @@ void create_mesh()
 
 void intersection()
 {
-    cout << "hello with original";
     for(size_t i = 0; i < vor.edge_count(); i++) {
         Edge* e = vor.get_edge(i);
         for(size_t j = 0; j < meshes[curr_mesh].face_count(); j++) {
@@ -138,6 +137,39 @@ bool edge_side_intersection(vertex x,
     }
     return true;
 }
+bool ray_side_intersection(vertex x,
+                            vertex w,
+                            vertex y,
+                            vertex z,
+                            vertex a,
+                            vertex b)
+{
+    // this ensures a and a+(infinity) * b are on opposite sides of the rectangle x,w,y,z (counterclockwise) or one of triangle on the rectangle
+    if (edge_side_intersection(x,w,y,z,a,b))
+        return true;
+
+
+    //if (abs(orient3d(a,x,w,y)) > 0 &&// >EPSILON  &&
+    //   (abs(orient3d(a,w,y,z))<=abs(orient3d(b,w,y,z)))){//+EPSILON)) {
+    //  return false;
+    //}
+    /* Orient3D(x,w,a,b), Orient3D(w,y,a,b)
+     * Orient3D(y,z,a,b), Orient3D(z,x,a,b)
+     * all have the same signs
+     * which guarantee that line a-b intersect with the rectangle
+     */
+    if (orient3d(x,w,a,b)*orient3d(w,y,a,b) < 0) {
+      return false;
+    }
+    if (orient3d(w,y,a,b)*orient3d(y,z,a,b) < 0) {
+      return false;
+    }
+    if (orient3d(y,z,a,b)*orient3d(z,x,a,b) < 0) {
+      return false;
+    }
+    return true;
+}
+
 bool inBox(Edge *e, Box* box) {
   double* bounds;
   bounds = box->bounds;
@@ -150,7 +182,42 @@ bool inBox(Edge *e, Box* box) {
   REAL v110[3]= {bounds[1], bounds[3], bounds[4]};
   REAL v111[3]= {bounds[1], bounds[3], bounds[5]};
   if (e->is_ray) {
-      return true;
+      REAL e_v0[3];
+      REAL e_v1[3];
+      for (int i = 0; i < 3; i++) {
+        e_v0[i] = e->v[0]->v[i];
+        e_v1[i] = e->v[0]->v[i] + e->dir[i];
+      }
+      int inside = 1;
+      for (int i=0; i<3; i++){
+          if ((e_v0[i] < bounds[i*2]) || (e_v0[i] > bounds[i*2+1])) inside = 0;
+          if ((e_v1[i] < bounds[i*2]) || (e_v1[i] > bounds[i*2+1])) inside = 0;
+      }
+      
+      if (inside) return true;
+ 
+      //check if intersect with 1 side of the box
+      bool result = ray_side_intersection(v001, v101, v111, v011, e_v0, e_v1) || //up
+             ray_side_intersection(v000, v010, v011, v001, e_v0, e_v1) || //left
+             ray_side_intersection(v100, v110, v111, v101, e_v0, e_v1) || //right
+             ray_side_intersection(v000, v100, v101, v001, e_v0, e_v1) || //front
+             ray_side_intersection(v010, v110, v111, v011, e_v0, e_v1); //back
+      //if (!result){
+      //printf("bounds:");
+      //for (int i =0; i<6; i++) {
+      //    printf("%f,", bounds[i]);
+      //}
+      //printf("\n ray:(");
+      //for (int i =0; i<3; i++) {
+      //    printf("%f,", e_v0[i]);
+      //}
+      //printf(")-(");
+      //for (int i =0; i<3; i++) {
+      //    printf("%f,", e_v1[i]);
+      //}
+      //printf(")\n result: %d\n", result);
+      //}
+      return result;
   } else {
       REAL e_v0[3];
       REAL e_v1[3];
