@@ -104,6 +104,13 @@ void compute_normals(Mesh& mesh)
         cross_product(vec1, vec2, f->n);
         for(int j = 0; j < f->v.size(); j++) {
             Vertex* vj = f->v[j];
+            vj->n[0] = 0;
+            vj->n[1] = 0;
+            vj->n[2] = 0;
+        }
+
+        for(int j = 0; j < f->v.size(); j++) {
+            Vertex* vj = f->v[j];
             vj->n[0] += f->n[0];
             vj->n[1] += f->n[1];
             vj->n[2] += f->n[2];
@@ -215,6 +222,11 @@ void compute_adjacent(Mesh& mesh, int adj_face[][4]) {
       v0 = v1;
     }
   }
+  //for (i=0; i < v_size; i++){
+  //    for (j=0; j < v_size; j++)
+  //      printf("face_for_e(%d,%d)=%d; ",i,j,face_for_e[i][j]);
+  //    printf("\n");
+  //}
 }
 /* helper function:
  * return the face, if any, that sharing Edge e with face F
@@ -314,6 +326,7 @@ void fix_adjacent_normal_new(Face* f1, Face* f2){
       clockwise2 = false;
   }
   if (clockwise1 == clockwise2) {
+    printf("face%d is reverted\n", f2->index);
     revert_face(f2);
   }
 }
@@ -321,30 +334,30 @@ void fix_adjacent_normal_new(Face* f1, Face* f2){
 void dfs_from_face(Mesh& mesh, Face* f, int adj_face[][4]){
     f->visited = true;
     int me = f->index;
-    printf("face %d's adjacent to: ", me);
+    //printf("face %d's adjacent to: ", me);
     for (int i = 1; i <= adj_face[me][0]; i++) {
         int other = adj_face[me][i];
         Face * f2 = mesh.get_face(other);
-        printf("face %d, ", other);
+        //printf("face %d, ", other);
         if (!f2->visited) {
             fix_adjacent_normal_new(f, f2);
             dfs_from_face(mesh, f2, adj_face);
         }
     }
-    printf("\n");
+    //printf("\n");
 }
 void adjust_normals(Mesh& mesh)
 {
     int f_size = mesh.face_count();
     int adj_face[f_size][4];
     compute_adjacent(mesh, adj_face);
-    //for (int i = 0; i < f_size; i++) {
-    //    printf("face %d's adjacent: ", i);
-    //    for (int j = 0; j <= adj_face[i][0]; j++){
-    //        printf("%d, ", adj_face[i][j]);
-    //    }
-    //    printf("\n");
-    //}
+    for (int i = 0; i < f_size; i++) {
+        //printf("face %d's adjacent: ", i);
+        for (int j = 0; j <= adj_face[i][0]; j++){
+            //printf("%d, ", adj_face[i][j]);
+        }
+        //printf("\n");
+    }
     
      
     for (int i = 0; i < f_size; i++){
@@ -359,6 +372,7 @@ void adjust_normals(Mesh& mesh)
 }
 
 void revert_face(Face* f){
+    revert(f->n);
     Vertex * tmp = f->v[0];
     f->v[0] = f->v[1];
     f->v[1] = tmp;

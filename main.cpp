@@ -329,7 +329,7 @@ BSP_tree* build_BSP(const vector<Face*> & faces, size_t size, int depth) {
                 right_size++;
             } 
         }
-        printf("spliting at depth %d with %d left tris and %d right tris with threshold %f\n", depth, left_size, right_size, tree->split);
+        //printf("spliting at depth %d with %d left tris and %d right tris with threshold %f\n", depth, left_size, right_size, tree->split);
         tree->l_child = build_BSP(tree->left, left_size, depth+1);
         tree->r_child = build_BSP(tree->right, right_size, depth+1);
     } else {
@@ -380,13 +380,13 @@ void intersection_with_BSP()
     countNum++;
     std::vector<Face*> triangles;
     size_t size = 0;
-    cout << "face_count: " << meshes[curr_mesh].face_count() << endl;
+    //cout << "face_count: " << meshes[curr_mesh].face_count() << endl;
     for(size_t j = 0; j < meshes[curr_mesh].face_count(); j++) {
         Face* f = meshes[curr_mesh].get_face(j);
         triangles.push_back(f);
         size++;
     }
-    cout << "sizes: " << size << endl;
+    //cout << "sizes: " << size << endl;
     BSP_tree* bsp = build_BSP(triangles, size, 0);
     cout << "finish building BSP!" << endl; 
     for(size_t i = 0; i < vor.edge_count(); i++) {

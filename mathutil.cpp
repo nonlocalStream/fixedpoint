@@ -83,6 +83,6 @@ void sub(double* u, double* v, double* d) {
 
 void revert(double* v) {
     for (int i = 0; i < 3; i++) {
-        v[i] = v[i] * -1;
+        v[i] = v[i] * (-1);
     }
 }
