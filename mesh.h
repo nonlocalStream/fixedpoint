@@ -19,6 +19,7 @@ struct Vertex
     double n[3];
     double t[2];
     bool has_normal, has_texture;
+    int added; /* whether the vertex is added to the next mesh */
     size_t index;
     vector<Face*> f;
 };

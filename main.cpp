@@ -75,21 +75,40 @@ int count_triangles(BSP_tree* bsp)
 void create_mesh()
 {
     Mesh next;
-    for(size_t i = 0; i < vor.edge_count(); i++) {
+   for(size_t i = 0; i < vor.edge_count(); i++) {
         Edge* e = vor.get_edge(i);
         next.add(e);
         if(e->intersected) {
             Face* f = e->dual;
+            next.add(f);
             for(size_t j = 0; j < f->v.size(); j++) {
                 Vertex* v = f->v[j];
-                next.add(v);
+                //if (!v->added){
+                //    v->added = true;
+                //    next.add(v);
+                //}
             }
-            next.add(f);
         }
+    }
+   for(size_t j = 0; j < del.vertex_count();j++) {
+        Vertex *v = del.get_vertex(j);
+        v->added = 0;
+    }
+     for(size_t j = 0; j < del.vertex_count();j++) {
+        Vertex *v = del.get_vertex(j);
+        v->added++;
+        next.add(v);
+    }
+    for(size_t j = 0; j < next.vertex_count();j++) {
+        Vertex *v = next.get_vertex(j);
+        //v->added = false;
+        //if (v->added>1)
+        //printf("added %d times; v%d's normal:(%f, %f, %f)\n",v->added,  v->index, v->n[0], v->n[1], v->n[2]);
     }
     compute_normals(next);
     meshes.push_back(next);
     curr_mesh = meshes.size()-1; 
+    mesh = next;
 }
 
 void intersection()
@@ -202,21 +221,6 @@ bool inBox(Edge *e, Box* box) {
              ray_side_intersection(v100, v110, v111, v101, e_v0, e_v1) || //right
              ray_side_intersection(v000, v100, v101, v001, e_v0, e_v1) || //front
              ray_side_intersection(v010, v110, v111, v011, e_v0, e_v1); //back
-      //if (!result){
-      //printf("bounds:");
-      //for (int i =0; i<6; i++) {
-      //    printf("%f,", bounds[i]);
-      //}
-      //printf("\n ray:(");
-      //for (int i =0; i<3; i++) {
-      //    printf("%f,", e_v0[i]);
-      //}
-      //printf(")-(");
-      //for (int i =0; i<3; i++) {
-      //    printf("%f,", e_v1[i]);
-      //}
-      //printf(")\n result: %d\n", result);
-      //}
       return result;
   } else {
       REAL e_v0[3];
@@ -542,6 +546,7 @@ void keyboard(unsigned char key, int x, int y)
         case 'b':
             if (curr_mesh > 0){
                 curr_mesh--;
+                mesh = meshes[curr_mesh];
                 clear_intersection();
                 intersection_with_BSP();
                 cout << "Face count: " <<  meshes[curr_mesh].face_count() << endl;
@@ -554,6 +559,7 @@ void keyboard(unsigned char key, int x, int y)
             curr_mesh++;
             if (curr_mesh >= meshes.size()) 
                 create_mesh();
+            mesh = meshes[curr_mesh];
             cout << "Face count: " <<  meshes[curr_mesh].face_count() << endl;
             cout << "Current Frame:" << curr_mesh <<endl;
         break;  

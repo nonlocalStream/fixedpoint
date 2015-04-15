@@ -1,7 +1,11 @@
 #include "mesh.h"
 #include "assert.h"
+#include <map>
 
 const double THRE = 0.5;
+const long P = 100663319;
+const int ADJ_DEGREE = 10;
+using namespace std;
 
 void Mesh::add(Vertex* v)
 {
@@ -177,19 +181,36 @@ double get_midpoint(Face* f, int axis){
 
 
 void revert_face(Face* f);
-void compute_adjacent(Mesh& mesh, int adj_face[][4]);
+void compute_adjacent(Mesh& mesh, int adj_face[][ADJ_DEGREE+1]);
 
-void compute_adjacent(Mesh& mesh, int adj_face[][4]) {
+//void empty(){
+//    int i;
+//    for (i = 0; i < P; i++){
+//    //}
+//}
+//long hash(int i, int j, int v_size){
+//    return (i*v_size+j) % P;
+//}
+//
+//bool find(int i, int j, )
+
+void compute_adjacent(Mesh& mesh, int adj_face[][ADJ_DEGREE+1]) {
   int i,j,size;
   int v_size = mesh.vertex_count();
   int f_size = mesh.face_count();
-  int face_for_e[v_size][v_size];
+  long index;
+  //list<int> hash_table[P];
+  //int sm[P];
+  //int gt[]
+  map<long, int> face_for_e;
+
+  //int face_for_e[v_size][v_size];
   int me, other;
-  for (i = 0; i<v_size; i++){
-      for (j=0; j<v_size; j++){
-          face_for_e[i][j]= -1;
-      }
-  }
+  //for (i = 0; i<v_size; i++){
+  //    for (j=0; j<v_size; j++){
+  //        face_for_e[i][j]= -1;
+  //    }
+  //}
   for (i = 0; i< f_size; i++){
       adj_face[i][0] = 0;
   }
@@ -207,26 +228,48 @@ void compute_adjacent(Mesh& mesh, int adj_face[][4]) {
         smaller = v1;
         greater = v0;
       }
-      if (face_for_e[smaller][greater] == -1) {
-        face_for_e[smaller][greater] = f->index;
+      index = smaller*v_size+greater;
+        
+      if (face_for_e.find(index)==face_for_e.end()) {
+          face_for_e[index] = f->index;
+          //printf("f->index: %d\n", f->index);
+      //if (face_for_e[smaller][greater] == -1) {
+      //  face_for_e[smaller][greater] = f->index;
       } else {
-        other = face_for_e[smaller][greater];
+
+        other = face_for_e[index];
+         
+ 
+        //other = face_for_e[smaller][greater];
         me = f->index;
-        adj_face[me][0]++;
-        size = adj_face[me][0];
-        adj_face[me][size] = other;
-        adj_face[other][0]++;
-        size = adj_face[other][0];
-        adj_face[other][size] = me;
+        //printf("other: %d\n", other);
+        //printf("me: %d\n", me);
+        //if (adj_face[me][0] <3){
+          adj_face[me][0]++;
+          size = adj_face[me][0];
+          adj_face[me][size] = other;
+        //}
+        //if (adj_face[other][0] <3){
+          adj_face[other][0]++;
+          size = adj_face[other][0];
+          adj_face[other][size] = me;
+        //}
       }
       v0 = v1;
     }
   }
-  //for (i=0; i < v_size; i++){
-  //    for (j=0; j < v_size; j++)
-  //      printf("face_for_e(%d,%d)=%d; ",i,j,face_for_e[i][j]);
-  //    printf("\n");
-  //}
+  for (i=0; i < v_size; i++){
+      Vertex * v = mesh.get_vertex(i);
+      //printf("vertex %d:(%f,%f,%f)\n", v->index, v->v[0], v->v[1], v->v[2]);
+  }
+  /*
+  for (i=0; i < v_size; i++){
+      for (j=0; j < v_size; j++)
+        if (face_for_e.find(i*v_size+j)!=face_for_e.end())
+            printf("face_for_e(%d,%d)=%d; ",i,j,face_for_e[i*v_size+j]);
+      printf("\n");
+  }
+      */
 }
 /* helper function:
  * return the face, if any, that sharing Edge e with face F
@@ -294,6 +337,9 @@ void compute_adjacent(Mesh& mesh, int adj_face[][4]) {
 
 void fix_adjacent_normal_new(Face* f1, Face* f2){
   /* v0, v1 are the shared vertex between f1,f2 */
+  /* return true if it did revert the face
+   * false if no change
+   */
   int i,j;
   int v0_1 = -1;
   int v0_2 = -1;
@@ -326,12 +372,12 @@ void fix_adjacent_normal_new(Face* f1, Face* f2){
       clockwise2 = false;
   }
   if (clockwise1 == clockwise2) {
-    printf("face%d is reverted\n", f2->index);
+    //printf("face%d is reverted\n", f2->index);
     revert_face(f2);
   }
 }
 
-void dfs_from_face(Mesh& mesh, Face* f, int adj_face[][4]){
+void dfs_from_face(Mesh& mesh, Face* f, int adj_face[][1+ADJ_DEGREE]){
     f->visited = true;
     int me = f->index;
     //printf("face %d's adjacent to: ", me);
@@ -346,29 +392,111 @@ void dfs_from_face(Mesh& mesh, Face* f, int adj_face[][4]){
     }
     //printf("\n");
 }
+bool need_fix_adjacent(Face* f1, Face* f2){
+  /* return true if f2 have wrong normal direction as regard to f1
+   * false if no change
+   */
+  int i,j;
+  int v0_1 = -1;
+  int v0_2 = -1;
+  int v1_1, v1_2;
+  for (i = 0; i < 3; i++){
+      int me = f1->v[i]->index;
+      for (j = 0; j < 3; j++){
+          if (f2->v[j]->index == me) {
+              if (v0_1 == -1) {
+                v0_1 = i;
+                v0_2 = j;
+              } else {
+                v1_1 = i;
+                v1_2 = j;
+              }
+          }
+      }
+  }
+  bool clockwise1, clockwise2; 
+  /* clockwise v0->v1->v2->v0
+   * countclockwise v0->v2->v1->v0 */
+  if ((v0_1 == v1_1-1) || ((v0_1 == 2) && (v1_1 == 0))){
+      clockwise1 = true;
+  } else {
+      clockwise1 = false;
+  }
+  if ((v0_2 == v1_2-1) || ((v0_2 == 2) && (v1_2 == 0))){
+      clockwise2 = true;
+  } else {
+      clockwise2 = false;
+  }
+  return (clockwise1 == clockwise2);
+}
+
+void check_normals(Mesh& mesh, int adj_face[][1+ADJ_DEGREE]){
+    for (int i = 0; i < mesh.face_count(); i++){
+        int me, other;
+        Face * f = mesh.get_face(i);
+        me = f->index;
+        bool error = 0;
+        for (int j = 1; j <= adj_face[me][0]; j++) {
+          other = adj_face[me][j];
+          Face * f2 = mesh.get_face(other);
+          //printf("face %d, ", other);
+          if (need_fix_adjacent(f, f2)){
+              error = 1;
+              printf("face%d is opposite to face%d\n", f2->index, f->index);
+              printf("face%d: (%d,%d,%d)\n", f2->index, f2->v[0]->index, f2->v[1]->index, f2->v[2]->index);
+              printf("face%d: (%d,%d,%d)\n", f->index, f->v[0]->index, f->v[1]->index, f->v[2]->index);
+          }
+        }
+        if (error){
+          printf("face%d is adjacent to:", me);
+          for (int j = 1; j <= adj_face[me][0]; j++) {
+            other = adj_face[me][j];
+            printf("face%d, ", other);
+          }
+          printf("\n\n");
+        }
+   }
+}
+
 void adjust_normals(Mesh& mesh)
 {
     int f_size = mesh.face_count();
-    int adj_face[f_size][4];
+    int adj_face[f_size][ADJ_DEGREE+1];
     compute_adjacent(mesh, adj_face);
     for (int i = 0; i < f_size; i++) {
-        //printf("face %d's adjacent: ", i);
-        for (int j = 0; j <= adj_face[i][0]; j++){
-            //printf("%d, ", adj_face[i][j]);
+        if (adj_face[i][0] > 3) {
+            //printf("face %d's adjacent: ", i);
+                Face * f = mesh.get_face(i);
+                int k;
+                for (k=0; k < 3; k++){
+                      Vertex * v = f->v[k];
+                      //printf("vertex %d:(%f,%f,%f)\n", v->index, v->v[0], v->v[1], v->v[2]);
+                  }
+            for (int j = 0; j <= adj_face[i][0]; j++){
+                //printf("%d, \n", adj_face[i][j]);
+                Face * f = mesh.get_face(adj_face[i][j]);
+                int k;
+                for (k=0; k < 3; k++){
+                      Vertex * v = f->v[k];
+                      //printf("vertex %d:(%f,%f,%f)\n", v->index, v->v[0], v->v[1], v->v[2]);
+                  }
+
+            }
+            //printf("\n");
         }
-        //printf("\n");
     }
     
      
     for (int i = 0; i < f_size; i++){
         mesh.get_face(i)->visited = false; 
     }
-    for (int i = 0; i < mesh.face_count(); i++){
+    for (int i = 0; i < f_size; i++){
       if (!mesh.get_face(i)->visited) {
-        dfs_from_face(mesh, mesh.get_face(0), adj_face);
+        dfs_from_face(mesh, mesh.get_face(i), adj_face);
       }
     }
     compute_normals(mesh);
+    check_normals(mesh, adj_face);
 }
 
 void revert_face(Face* f){
