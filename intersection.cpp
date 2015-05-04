@@ -67,8 +67,10 @@ bool edge_triangle_intersection(Edge* e, Vertex* v0, Vertex* v1, Vertex* v2, dou
 
 bool edge_face_intersection(Edge* e, Face* f) {
     for (int i = 1; i < f->v.size()-1; i++) {
-        if (edge_triangle_intersection(e, f->v[0], f->v[i], f->v[i+1], f->n))
+        if (edge_triangle_intersection(e, f->v[0], f->v[i], f->v[i+1], f->n)) {
+            e->intersected_face = f;
             return true;
+    }
     }
     return false;
 }

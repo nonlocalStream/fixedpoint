@@ -29,10 +29,11 @@ struct Edge
     Vertex* v[2];
     Face* f[2];
     Face* dual;
-    double p[3];
+    double p[3]; /* the intersection point */
     double dir[3];
     size_t index;
     bool intersected;
+    Face* intersected_face;
     bool is_ray;
 };
 
@@ -44,6 +45,7 @@ struct Face
     double n[3];
     size_t index;
     bool visited;
+    int fix_level;
 };
 
 
@@ -105,4 +107,5 @@ void center_on_screen(Mesh& mesh);
 double get_midpoint(Face* f, int axis);
 void adjust_normals(Mesh& mesh);
 void revert_normals(Mesh& mesh);
+void update_fix_level(Mesh& mesh);
 #endif

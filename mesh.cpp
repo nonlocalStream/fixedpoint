@@ -232,9 +232,6 @@ void compute_adjacent(Mesh& mesh, int adj_face[][ADJ_DEGREE+1]) {
         
       if (face_for_e.find(index)==face_for_e.end()) {
           face_for_e[index] = f->index;
-          //printf("f->index: %d\n", f->index);
-      //if (face_for_e[smaller][greater] == -1) {
-      //  face_for_e[smaller][greater] = f->index;
       } else {
 
         other = face_for_e[index];
@@ -297,43 +294,6 @@ void compute_adjacent(Mesh& mesh, int adj_face[][ADJ_DEGREE+1]) {
  *      \| /
  *      v0
  */
-//void fix_adjacent_normal(Face* f, Edge* e, Face* f2){
-//    Vertex* v0 = e->v[0];
-//    Vertex* v1 = e->v[1];
-//    Vertex* v2;
-//    Vertex* v3;
-//    for (int i = 0; i < 3; i++){
-//      if ((f->v[i] != v0) && (f->v[i] != v1))
-//          v2 = f->v[i];
-//      if ((f2->v[i] != v0) && (f2->v[i] != v1))
-//          v3 = f2->v[i];
-//    }
-//    double vec1[3] = {0,0,0};
-//    double vec2[3] = {0,0,0};
-//    double n1[3] = {0,0,0};
-//    double n2[3] = {0,0,0};
-//    for(int j = 0; j < 3; j++) {
-//        vec1[j] = v1->v[j] - v0->v[j];
-//        vec2[j] = v2->v[j] - v0->v[j];
-//    }
-//    cross_product(vec1, vec2, n1);
-//    for(int j = 0; j < 3; j++) {
-//        vec1[j] = v3->v[j] - v0->v[j];
-//        vec2[j] = v1->v[j] - v0->v[j];
-//    }
-//    cross_product(vec1, vec2, n2);
-//    normalize(n1);
-//    normalize(n2);
-//    // make sure n1 and f->n has the same direction
-//    if (dist(n1, f->n) > THRE) {
-//      revert(n1);
-//      revert(n2);
-//    }
-//    //change f2->n, if neccessary, so that n2 and f2->n has the same direction
-//    if (dist(n2, f2->n) > THRE) {
-//      revert(f2->n);
-//    }
-//}
 
 void fix_adjacent_normal_new(Face* f1, Face* f2){
   /* v0, v1 are the shared vertex between f1,f2 */
@@ -496,7 +456,7 @@ void adjust_normals(Mesh& mesh)
       }
     }
     compute_normals(mesh);
-    check_normals(mesh, adj_face);
+    //check_normals(mesh, adj_face);
 }
 
 void revert_face(Face* f){
@@ -523,3 +483,36 @@ void revert_normals(Mesh& mesh) {
     //}
 }
 
+void update_fix_level(Mesh &mesh){
+    for (int i = 0; i < mesh.face_count(); i++){
+        Face * f = mesh.get_face(i);
+        //printf("%f--->", mesh.get_face(i)->n[0]);
+        if (f->dual){
+            int count = 5;
+            Face * walk = f;
+            while ((walk) && (walk->dual) && (walk->dual->intersected_face != walk) && (count > 0)){
+                walk = walk->dual->intersected_face;
+                count--;
+            }
+            //f->fix_level = count;
+            //if ((f->dual)&&(f->dual->intersected_face == f)) {
+            //    f->fix_level = 1;
+            //} else {
+            //    f->fix_level = 2;
+            //}
+            if (count <= 0){
+                printf("error: 5 is not the max depth of dependencies");
+            } else if (walk && (walk->dual) && (walk->dual->intersected_face != walk)) {
+                f->fix_level = count;
+            } else {
+                f->fix_level = 0;
+            }
+
+        } else {
+            f->fix_level = 0;
+        }
+        //revert((mesh.get_face(i))->n);
+        //printf("%f\n", mesh.get_face(i)->n[0]);
+    }
+
+}

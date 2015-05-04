@@ -99,12 +99,6 @@ void create_mesh()
         v->added++;
         next.add(v);
     }
-    for(size_t j = 0; j < next.vertex_count();j++) {
-        Vertex *v = next.get_vertex(j);
-        //v->added = false;
-        //if (v->added>1)
-        //printf("added %d times; v%d's normal:(%f, %f, %f)\n",v->added,  v->index, v->n[0], v->n[1], v->n[2]);
-    }
     compute_normals(next);
     meshes.push_back(next);
     curr_mesh = meshes.size()-1; 
@@ -401,17 +395,19 @@ void intersection_with_BSP()
 }
 
 
-void draw_point(double* v)
+void draw_point(double* v, double r, double g, double b)
 {
+    glColor3f(r,g,b);
     glPushMatrix();
     glTranslatef(v[0], v[1], v[2]);
     gluSphere(quadric, 0.02, 10, 10);
     glPopMatrix();
+    glColor3f(1,1,1);
 }
 
 void display()
 {
-    float mat_diffuse[4] = {0,1,0,1};
+    float mat_diffuse[4] = {.5,.5,.5,0.5};
     float mat_ambient[4] = {0,0,0,1};
     float mat_specular[4] = {0,0,0,1};
     float mat_shininess = 1;
@@ -422,10 +418,15 @@ void display()
     glEnable(GL_LIGHT0);
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ctx.global_ambient);
     glLightfv(GL_LIGHT0, GL_POSITION, ctx.light_pos);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &mat_shininess);
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_EMISSION);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_SPECULAR);
+    glColor3f(0.3, 0.3, 0.3 );
+    //glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+    //glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
+    //glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
+    //glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &mat_shininess);
 
     glPushMatrix();
     glLoadIdentity();
@@ -435,7 +436,11 @@ void display()
 
     for(int i = 0; i < meshes[curr_mesh].face_count(); i++) {
         Face* f = meshes[curr_mesh].get_face(i);
+        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
         glBegin(GL_POLYGON);
+        if (curr_mesh > 0) {
+            glColor3f(1,0.3,0.3);//0.5+(float)(f->fix_level)/5,0.5,0.5);
+        }
         for(int j = 0; j < f->v.size(); j++) {
             Vertex* v = f->v[j];
             glNormal3dv(v->n);
@@ -450,11 +455,11 @@ void display()
         glDisable(GL_LIGHTING);
         for(size_t i = 0; i < vor.edge_count(); i++) {
             Edge* e = vor.get_edge(i);
-            if (e->intersected) {
-                glColor3f(1,0,0);
-            } else {
-                glColor3f(1,1,1);
-            }
+            //if (e->intersected) {
+            //    glColor3f(1,0,0);
+            //} else {
+            //    glColor3f(1,1,1);
+            //}
             glBegin(GL_LINES);
             glVertex3dv(e->v[0]->v);
             glVertex3dv(e->v[1]->v);
@@ -470,7 +475,11 @@ void display()
         for(size_t i = 0; i < vor.edge_count(); i++) {
             Edge* e = vor.get_edge(i);
             if(e->intersected) {
-                draw_point(e->p);
+                if ((e->index) % 2 == 0) {
+                    draw_point(e->p,1,1,0);
+                } else {
+                    draw_point(e->p,1,0,1);
+                }
             }
         mat_diffuse[0] = 1, mat_diffuse[1] = 0;
         glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
@@ -557,8 +566,11 @@ void keyboard(unsigned char key, int x, int y)
             clear_intersection();
             intersection_with_BSP();
             curr_mesh++;
-            if (curr_mesh >= meshes.size()) 
+            if (curr_mesh >= meshes.size()){
                 create_mesh();
+                update_fix_level(mesh);
+            }
+               
             mesh = meshes[curr_mesh];
             cout << "Face count: " <<  meshes[curr_mesh].face_count() << endl;
             cout << "Current Frame:" << curr_mesh <<endl;
@@ -797,6 +809,7 @@ void delaunay()
 void init()
 {
     glClearColor(0.0, 0.71, 1.0, 1.0);
+    //glClearColor(1.0, 1.0, 1.0, 1.0);
     glShadeModel(GL_SMOOTH);
     
     glEnable(GL_LIGHTING);
@@ -828,6 +841,7 @@ int main(int argc, char* argv[])
     meshes.push_back(mesh);
     
     delaunay();
+    adjust_normals(meshes[curr_mesh]);
     
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
