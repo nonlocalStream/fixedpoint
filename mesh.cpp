@@ -4,7 +4,7 @@
 
 const double THRE = 0.5;
 const long P = 100663319;
-const int ADJ_DEGREE = 10;
+const int ADJ_DEGREE = 20;
 using namespace std;
 
 void Mesh::add(Vertex* v)
@@ -199,9 +199,6 @@ void compute_adjacent(Mesh& mesh, int adj_face[][ADJ_DEGREE+1]) {
   int v_size = mesh.vertex_count();
   int f_size = mesh.face_count();
   long index;
-  //list<int> hash_table[P];
-  //int sm[P];
-  //int gt[]
   map<long, int> face_for_e;
 
   //int face_for_e[v_size][v_size];
@@ -229,7 +226,6 @@ void compute_adjacent(Mesh& mesh, int adj_face[][ADJ_DEGREE+1]) {
         greater = v0;
       }
       index = smaller*v_size+greater;
-        
       if (face_for_e.find(index)==face_for_e.end()) {
           face_for_e[index] = f->index;
       } else {
@@ -268,21 +264,7 @@ void compute_adjacent(Mesh& mesh, int adj_face[][ADJ_DEGREE+1]) {
   }
       */
 }
-/* helper function:
- * return the face, if any, that sharing Edge e with face F
- */
-/*
- Face * other_face(Face* f, Edge* e){
-    assert ((e->f)&&(e->f[0]));
-    if (e->f[0] == f) 
-        return e->f[1];
-    if (e->f[1] == f)
-        return e->f[0];
-    assert (false);
-    printf("e doesn't record its face");
-    return NULL;
-}
-*/
+
 
 /* reverse the direction of f2 if it 
  * doesn't agree with f's
@@ -483,10 +465,27 @@ void revert_normals(Mesh& mesh) {
     //}
 }
 
-void update_fix_level(Mesh &mesh){
+void update_color_var(Mesh &mesh, Mesh &prev_mesh, bool first){
+    if (first) {
+        for (int i = 0; i < mesh.face_count(); i++){
+            mesh.get_face(i)->to_disappear = false;
+            mesh.get_face(i)->newly_appear = false;
+            mesh.get_face(i)->fix_level = 0;
+        }
+        return;
+    }
+    for (int i = 0; i < prev_mesh.face_count(); i++){
+        prev_mesh.get_face(i)->to_disappear = true;
+    }
+    for (int i = 0; i < mesh.face_count(); i++){
+        mesh.get_face(i)->to_disappear = false;
+        mesh.get_face(i)->newly_appear = true;
+    }
+    for (int i = 0; i < prev_mesh.face_count(); i++){
+        prev_mesh.get_face(i)->newly_appear = false;
+    }
     for (int i = 0; i < mesh.face_count(); i++){
         Face * f = mesh.get_face(i);
-        //printf("%f--->", mesh.get_face(i)->n[0]);
         if (f->dual){
             int count = 5;
             Face * walk = f;
@@ -494,16 +493,11 @@ void update_fix_level(Mesh &mesh){
                 walk = walk->dual->intersected_face;
                 count--;
             }
-            //f->fix_level = count;
-            //if ((f->dual)&&(f->dual->intersected_face == f)) {
-            //    f->fix_level = 1;
-            //} else {
-            //    f->fix_level = 2;
-            //}
             if (count <= 0){
                 printf("error: 5 is not the max depth of dependencies");
-            } else if (walk && (walk->dual) && (walk->dual->intersected_face != walk)) {
+            } else if (walk && (walk->dual) && (walk->dual->intersected_face == walk)) {
                 f->fix_level = count;
+            printf("count:%d\n",count);
             } else {
                 f->fix_level = 0;
             }
@@ -511,8 +505,6 @@ void update_fix_level(Mesh &mesh){
         } else {
             f->fix_level = 0;
         }
-        //revert((mesh.get_face(i))->n);
-        //printf("%f\n", mesh.get_face(i)->n[0]);
     }
 
 }

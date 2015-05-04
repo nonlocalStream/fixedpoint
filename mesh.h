@@ -46,6 +46,8 @@ struct Face
     size_t index;
     bool visited;
     int fix_level;
+    bool to_disappear;
+    bool newly_appear;
 };
 
 
@@ -107,5 +109,5 @@ void center_on_screen(Mesh& mesh);
 double get_midpoint(Face* f, int axis);
 void adjust_normals(Mesh& mesh);
 void revert_normals(Mesh& mesh);
-void update_fix_level(Mesh& mesh);
+void update_color_var(Mesh& mesh, Mesh &prev_mesh, bool first);
 #endif

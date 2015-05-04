@@ -41,6 +41,7 @@ int countNum = 0;
 
 GLUquadricObj *quadric = gluNewQuadric();
 bool draw_intersection = false;
+bool draw_disappear_and_appear = false;
 bool draw_voronoi = false;
 
 void clear_intersection()
@@ -415,32 +416,43 @@ void display()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glPolygonMode(GL_FRONT_AND_BACK, ctx.wireframe ? GL_LINE : GL_FILL);
     
-    glEnable(GL_LIGHT0);
-    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ctx.global_ambient);
-    glLightfv(GL_LIGHT0, GL_POSITION, ctx.light_pos);
+    //glEnable(GL_LIGHT0);
+    //glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ctx.global_ambient);
+    //glLightfv1GL_LIGHT0, GL_POSITION, ctx.light_pos);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &mat_shininess);
     glEnable(GL_COLOR_MATERIAL);
     glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_EMISSION);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT);
+    //glColorMaterial(GL_FRONT_AND_BACK, GL_EMISSION);
     glColorMaterial(GL_FRONT_AND_BACK, GL_SPECULAR);
-    glColor3f(0.3, 0.3, 0.3 );
-    //glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
-    //glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
-    //glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-    //glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &mat_shininess);
+    glColor3f(1, 1, 1);
 
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(0, 0, -4);
     glMultMatrixf(ctx.mat);
     
-
+    float delta, r,g, b;
     for(int i = 0; i < meshes[curr_mesh].face_count(); i++) {
         Face* f = meshes[curr_mesh].get_face(i);
-        glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+        glPolygonMode(GL_FRONT_AND_BACK, ctx.wireframe ? GL_LINE : GL_FILL);
+        //glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
         glBegin(GL_POLYGON);
         if (curr_mesh > 0) {
-            glColor3f(1,0.3,0.3);//0.5+(float)(f->fix_level)/5,0.5,0.5);
+            if (f->fix_level > 0) {
+                delta = (float)(f->fix_level)/5;
+                b = (1.0+delta)/3;
+                g = (1.0-delta/2)/3;
+                r = (1.0-delta/2)/3;
+                glColor3f(r,g,b);
+            } else {
+                glColor3f(1, 1, 1);
+            }
         }
+
         for(int j = 0; j < f->v.size(); j++) {
             Vertex* v = f->v[j];
             glNormal3dv(v->n);
@@ -470,20 +482,57 @@ void display()
 
     if(draw_intersection) {
         //Draw intersection points
-        mat_diffuse[0] = 1, mat_diffuse[1] = 0;
-        glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+        //mat_diffuse[0] = 1, mat_diffuse[1] = 0;
+        //glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
         for(size_t i = 0; i < vor.edge_count(); i++) {
             Edge* e = vor.get_edge(i);
             if(e->intersected) {
-                if ((e->index) % 2 == 0) {
-                    draw_point(e->p,1,1,0);
-                } else {
-                    draw_point(e->p,1,0,1);
-                }
+                draw_point(e->p,1,0,0);
             }
-        mat_diffuse[0] = 1, mat_diffuse[1] = 0;
-        glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+        //mat_diffuse[0] = 1, mat_diffuse[1] = 0;
+        //glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
         }
+    }
+
+    if((curr_mesh > 0) && draw_disappear_and_appear){
+        glColor3f(1,0,0);
+        for(size_t i = 0; i < meshes[curr_mesh - 1].face_count(); i++) {
+            Face* f = meshes[curr_mesh - 1].get_face(i);
+            if (f->to_disappear){
+                glPolygonMode(GL_FRONT_AND_BACK, ctx.wireframe ? GL_LINE : GL_FILL);
+                //glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+                mat_diffuse[0] = 1, mat_diffuse[1] = 0;
+                glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+                glBegin(GL_POLYGON);
+                for(int j = 0; j < f->v.size(); j++) {
+                    Vertex* v = f->v[j];
+                    glNormal3dv(v->n);
+                    glTexCoord2dv(v->t);
+                    glVertex3dv(v->v);  
+                } 
+                glEnd();
+                mat_diffuse[0] = 1, mat_diffuse[1] = 0;
+                glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_diffuse);
+            }
+        }
+        glColor3f(0,1,0);
+        for(size_t i = 0; i < meshes[curr_mesh].face_count(); i++) {
+            Face* f = meshes[curr_mesh].get_face(i);
+            if (f->newly_appear){
+                glDisable(GL_LIGHTING);
+                glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+                glBegin(GL_POLYGON);
+                for(int j = 0; j < f->v.size(); j++) {
+                    Vertex* v = f->v[j];
+                    glNormal3dv(v->n);
+                    glTexCoord2dv(v->t);
+                    glVertex3dv(v->v);  
+                } 
+                glEnd();
+                glEnable(GL_LIGHTING);
+            }
+        }
+        glColor3f(1,1,1);
     }
 
 //    if(draw_BSP) {
@@ -543,6 +592,9 @@ void keyboard(unsigned char key, int x, int y)
         case 'p':
             draw_intersection = !draw_intersection;
         break;
+        case 'd':
+            draw_disappear_and_appear = !draw_disappear_and_appear;
+        break;
         case 'v':
             draw_voronoi = !draw_voronoi;
         break;
@@ -556,6 +608,7 @@ void keyboard(unsigned char key, int x, int y)
             if (curr_mesh > 0){
                 curr_mesh--;
                 mesh = meshes[curr_mesh];
+                update_color_var(meshes[curr_mesh], meshes[curr_mesh-1], curr_mesh == 0);
                 clear_intersection();
                 intersection_with_BSP();
                 cout << "Face count: " <<  meshes[curr_mesh].face_count() << endl;
@@ -568,18 +621,15 @@ void keyboard(unsigned char key, int x, int y)
             curr_mesh++;
             if (curr_mesh >= meshes.size()){
                 create_mesh();
-                update_fix_level(mesh);
+                adjust_normals(meshes[curr_mesh]);
             }
                
-            mesh = meshes[curr_mesh];
+            update_color_var(meshes[curr_mesh], meshes[curr_mesh-1], curr_mesh == 0);
             cout << "Face count: " <<  meshes[curr_mesh].face_count() << endl;
             cout << "Current Frame:" << curr_mesh <<endl;
         break;  
         case 'w':
             ctx.wireframe = !ctx.wireframe;
-        break;
-        case 't':
-            cout << "Testing:";
         break;
         case 27: //ESC key
             exit(0);
@@ -813,6 +863,7 @@ void init()
     glShadeModel(GL_SMOOTH);
     
     glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
     glLightfv(GL_LIGHT0, GL_AMBIENT, ctx.ambient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, ctx.diffuse);
     glLightfv(GL_LIGHT0, GL_SPECULAR, ctx.specular);
@@ -841,7 +892,6 @@ int main(int argc, char* argv[])
     meshes.push_back(mesh);
     
     delaunay();
-    adjust_normals(meshes[curr_mesh]);
     
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
