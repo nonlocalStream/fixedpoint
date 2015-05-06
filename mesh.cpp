@@ -497,7 +497,7 @@ void update_color_var(Mesh &mesh, Mesh &prev_mesh, bool first){
                 printf("error: 5 is not the max depth of dependencies");
             } else if (walk && (walk->dual) && (walk->dual->intersected_face == walk)) {
                 f->fix_level = count;
-            printf("count:%d\n",count);
+            //printf("count:%d\n",count);
             } else {
                 f->fix_level = 0;
             }

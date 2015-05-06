@@ -22,6 +22,7 @@
 #include "pyramid.c"
 #include <time.h>
 #include <stdlib.h>
+
 #endif
 
 const int Max_BSP_Depth = 15;
@@ -44,6 +45,16 @@ bool draw_intersection = false;
 bool draw_disappear_and_appear = false;
 bool draw_voronoi = false;
 
+double scale = 1;
+
+    // flip mouse y axis so up is +y
+    //     my = glutGet( GLUT_WINDOW_HEIGHT }
+    //
+    //         // convert mouse coords to (-1/2,-1/2}
+    //             x = ( mx / (}
+    //                 y = ( my / (}
+    //                 }
+    //                 }
 void clear_intersection()
 {
     for(size_t i = 0; i < vor.edge_count(); i++) {
@@ -433,6 +444,7 @@ void display()
     glPushMatrix();
     glLoadIdentity();
     glTranslatef(0, 0, -4);
+    glScalef(scale, scale, 1.0f);
     glMultMatrixf(ctx.mat);
     
     float delta, r,g, b;
@@ -571,6 +583,7 @@ void reshape(int w, int h)
     glMatrixMode(GL_MODELVIEW);
 }
 
+
 void keyboard(unsigned char key, int x, int y)
 {
     FILE *f;
@@ -633,6 +646,14 @@ void keyboard(unsigned char key, int x, int y)
         break;
         case 27: //ESC key
             exit(0);
+        break;
+        case '=':
+            scale += .05;
+            glutPostRedisplay();
+        break;
+        case '-':
+            scale -= .05;
+            glutPostRedisplay();
         break;
         default:
             cout << "Unassigned character: " << key << endl;
